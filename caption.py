@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug  2 11:21:53 2019
-
-@author: Prathima
-"""
-#import required modules
+#importing required modules
 from keras.preprocessing import sequence
 from keras.layers import LSTM, Embedding, Dense, add, Dropout
 from keras.applications.inception_v3 import InceptionV3
@@ -30,6 +24,7 @@ for i in range(len(image_captions)-1):
         caption[id_capt[0]].append(id_capt[1])
     else:
         caption[id_capt[0]] = [id_capt[1]]
+
 train_imgs_id = open(r"..\Flicker8k_Dataset\ned\Flickr_8k.trainImages.txt").read().split('\n')[:-1]
 train_imgs_captions = open("trainimgs.txt",'w')         #create a file with training image ids
 for img_id in train_imgs_id:
@@ -38,15 +33,6 @@ for img_id in train_imgs_id:
         train_imgs_captions.write(img_id+"\t"+desc+"\n")
         train_imgs_captions.flush()
 train_imgs_captions.close()
-
-test_imgs_id = open(r"..\Flicker8k_Dataset\ned\Flickr_8k.testImages.txt","w").readlines()
-test_imgs_captions = open("testimgs.txt",'w')           #create a file with training image ids
-for img_id in test_imgs_id:
-    for captions in caption[img_id]:
-        desc = "<start> "+captions+" <end>"
-        test_imgs_captions.write(img_id+"\t"+desc+"\n")
-        test_imgs_captions.flush()
-test_imgs_captions.close()
 
 def preprocess_input(x):
     x /= 255.
@@ -82,19 +68,7 @@ with open("encoded_train_images_inceptionV3.p", "wb") as encoded_pickle:
     pickle.dump(encoding_train, encoded_pickle) #python object can be pickled so that it can be saved on disk.
 encoding_train = pickle.load(open('encoded_train_images_inceptionV3.p', 'rb'))
 
-#for testing your own images,in the below part just change the 'test_images_id' with the file having the image_ids of your images
-#the code for that is in the end
-test_imgs_id = open(r"..\Flicker8k_Dataset\ned\Flickr_8k.testImages.txt").read().split('\n')[:-1]
-encoding_test = {}
-for img in tqdm(test_imgs_id):
-    img=img.split("\n")[0]
-    print(img)
-    encoding_test[img] = encode(img)
-with open("encoded_test_images_inceptionV3.p", "wb") as encoded_pickle:
-    pickle.dump(encoding_test, encoded_pickle)
-encoding_test = pickle.load(open('encoded_test_images_inceptionV3.p', 'rb'))
-
-dataframe = pd.read_csv(r'C:\ML\inception\trainimgs.txt', delimiter='\t')
+dataframe = pd.read_csv('trainimgs.txt', delimiter='\t')
 captionz = []
 img_id = []
 dataframe = dataframe.sample(frac=1)
@@ -177,11 +151,45 @@ fin_model.fit_generator(data_process(batch_size=batch_size), steps_per_epoch=no_
 fin_model.save("Weights_1")           #save the weights
 
 
-#testing phase
+#--------------------------------------------------------testing phase---------------------------------------------------------------------
+
 fin_model = load_model('Weights_1')
 
-def beam_search_predictions(image_file, beam_index = 3):
+#simple gui using tkinter(only for testing with your images)
+root = tkinter.Tk()
+root.lift()
+root.withdraw()           #use to hide tkinter window
+root.focus_force() 
+
+def search_for_file_path ():
+    currdir = os.getcwd()
+    tempdir = filedialog.askopenfilename(initialdir=currdir, title='Please select a directory',filetypes = (("jpeg files","*.jpg"),("Portable Network Graphics","*.png"),("all files","*.*")))
+    if len(tempdir) > 0:
+        print ("You chose: %s" % tempdir)
+    return tempdir
   
+test_image = search_for_file_path()         #test_image is the test image file path
+word=test_image.split('/')[-1]
+print ("\nfile_path_variable=", word.split("\n")[0])
+fp=open("testImages.txt",'a') 
+fp.write(word+"\n")                         #writes the image_id to testImages.txt
+fp.close()
+
+image_file = word
+
+#for testing your own images,in the below part just assign the 'test_images_id' with the file having the image_ids of your images("testImages.txt" in your current directory)
+
+test_imgs_id = open(r"..\Flicker8k_Dataset\ned\Flickr_8k.testImages.txt").read().split('\n')[:-1]
+encoding_test = {}
+for img in tqdm(test_imgs_id):
+    img=img.split("\n")[0]
+    print(img)
+    encoding_test[img] = encode(img)
+with open("encoded_test_images_inceptionV3.p", "wb") as encoded_pickle:
+    pickle.dump(encoding_test, encoded_pickle)
+encoding_test = pickle.load(open('encoded_test_images_inceptionV3.p', 'rb'))  
+
+def beam_search_predictions(image_file, beam_index = 3):
     start = [word_idx["<start>"]]  
     start_word = [[start, 0.0]]  
     while len(start_word[0][0]) < max_length:
@@ -207,44 +215,17 @@ def beam_search_predictions(image_file, beam_index = 3):
     intermediate_caption = [idx_word[i] for i in start_word]
 
     final_caption = []
-    
     for i in intermediate_caption:
         if i != '<end>':
             final_caption.append(i)
         else:
             break
-    
     final_caption = ' '.join(final_caption[1:])
     return final_caption
 
-
-image_file="3255482333_5bcee79f7e.jpg"      #an image from the test dataset
+image_file="3255482333_5bcee79f7e.jpg"      #an image from the test dataset(comment it if you are testing your own images)
 test_image =  images + "\\" + image_file
 
 print ('Beam Search, k=3:', beam_search_predictions(image_file, beam_index=1))
 print ('Beam Search, k=5:', beam_search_predictions(image_file, beam_index=3))
 print ('Beam Search, k=9:', beam_search_predictions(image_file, beam_index=5))
-
-
-#frontend(only for testing with your images)
-root = tkinter.Tk()
-root.lift()
-root.withdraw()           #use to hide tkinter window
-root.focus_force() 
-
-def search_for_file_path ():
-    currdir = os.getcwd()
-    tempdir = filedialog.askopenfilename(initialdir=currdir, title='Please select a directory',filetypes = (("jpeg files","*.jpg"),("Portable Network Graphics","*.png"),("all files","*.*")))
-    if len(tempdir) > 0:
-        print ("You chose: %s" % tempdir)
-    return tempdir
-  
-test_image = search_for_file_path()         #test_image is the test image file path
-word=test_image.split('/')[-1]
-print ("\nfile_path_variable=", word.split("\n")[0])
-fp=open("test_image_ids.txt",'a') 
-fp.write(word+"\n")
-fp.close()
-
-image_file = word   
-#after this continue with the above code for testing.
