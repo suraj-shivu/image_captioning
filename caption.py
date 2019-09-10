@@ -1,4 +1,5 @@
 #importing required modules
+import tensorflow as tf
 from keras.preprocessing import sequence
 from keras.layers import LSTM, Embedding, Dense, add, Dropout
 from keras.applications.inception_v3 import InceptionV3
@@ -124,7 +125,7 @@ def data_process(batch_size):
                     partial_captions = []
                     next_words = []
                     images = []
-
+#model
 EMBEDDING_DIM = 300
 # image feature extractor model
 inputs1 = Input(shape=(2048,))
